@@ -1,4 +1,4 @@
-module communautowatcher
+module github.com/maleblond/communautowatcher
 
 go 1.19
 
