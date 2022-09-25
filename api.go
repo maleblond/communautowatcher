@@ -1,4 +1,4 @@
-package api
+package communautowatcher
 
 import (
 	"io"
@@ -9,17 +9,6 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
-type Car struct {
-	Distance  float64
-	Latitude  float64
-	Longitude float64
-}
-
-type CarQuery struct {
-	StartDate string
-	EndDate   string
-}
-
 const carAvailabilityURL = "https://www.reservauto.net/Scripts/Client/Ajax/PublicCall/Get_Car_DisponibilityJSON.asp"
 
 type carAvailabilitiesResp struct {
@@ -27,10 +16,11 @@ type carAvailabilitiesResp struct {
 }
 
 type carAvailabilityResp struct {
-	Distance  float64 `yaml:"Distance"`
-	NbrRes    int     `yaml:"NbrRes"`
-	Latitude  float64 `yaml:"Latitude"`
-	Longitude float64 `yaml:"Longitude"`
+	StationName string  `yaml:"strNomStation"`
+	Distance    float64 `yaml:"Distance"`
+	NbrRes      int     `yaml:"NbrRes"`
+	Latitude    float64 `yaml:"Latitude"`
+	Longitude   float64 `yaml:"Longitude"`
 }
 
 // The API does not return valid JSON, so we need to do some gymnastics (see ./samples/car_availabilities.txt):
@@ -59,13 +49,13 @@ func GetAvailableCars(query CarQuery) ([]Car, error) {
 	res, err := http.PostForm(carAvailabilityURL,
 		url.Values{
 			"CurrentLanguageID": {"1"},
-			"CityID":            {"90"},
-			"StartDate":         {query.StartDate},
-			"EndDate":           {query.EndDate},
+			"CityID":            {query.CityID},
+			"StartDate":         {query.StartDate.Format("02/01/2006 15:04")},
+			"EndDate":           {query.EndDate.Format("02/01/2006 15:04")},
 			"Accessories":       {"0"},
 			"FeeType":           {"80"},
-			"Latitude":          {"46.8046335"},
-			"Longitude":         {"-71.2342692"},
+			"Latitude":          {query.FromLatitude},
+			"Longitude":         {query.FromLongitude},
 		})
 
 	if err != nil {
@@ -82,7 +72,12 @@ func GetAvailableCars(query CarQuery) ([]Car, error) {
 
 	for _, availability := range parsedResp.Data {
 		if availability.NbrRes == 0 {
-			cars = append(cars, Car{Distance: availability.Distance, Latitude: availability.Latitude, Longitude: availability.Longitude})
+			cars = append(cars, Car{
+				Distance:     availability.Distance,
+				Latitude:     availability.Latitude,
+				LocationName: availability.StationName,
+				Longitude:    availability.Longitude,
+			})
 		}
 	}
 
