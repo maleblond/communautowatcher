@@ -70,17 +70,17 @@ func parseAvailableCarResponse(res *http.Response) (carAvailabilitiesResp, error
 
 func GetAvailableFlexCars(ctx context.Context, query CarQuery) (flexCarAvailabilitiesResp, error) {
 	req, err := http.NewRequest(http.MethodGet, flexCarAvailabilityURL, nil)
+	if err != nil {
+		fmt.Printf("client: could not create request: %s\n", err)
+		os.Exit(1)
+	}
+
 	req.WithContext(ctx)
 	q := req.URL.Query()
 	q.Add("BranchID", query.BranchID)
 	q.Add("LanguageID", query.LanguageID)
 	q.Add("CityID", query.CityID)
 	req.URL.RawQuery = q.Encode()
-
-	if err != nil {
-		fmt.Printf("client: could not create request: %s\n", err)
-		os.Exit(1)
-	}
 
 	cars := flexCarAvailabilitiesResp{}
 	res, err := http.DefaultClient.Do(req)

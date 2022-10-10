@@ -37,17 +37,17 @@ func main() {
 type Watcher struct{}
 
 func (w *Watcher) GetQueries() []communautowatcher.CarQuery {
-	// Could fetch your "queries" from a database or a config file
-	startDate, _ := time.Parse("2006-01-02T15:04", "2022-10-11T11:00")
-	endDate, _ := time.Parse("2006-01-02T15:04", "2022-10-11T11:30")
+    // Could fetch your "queries" from a database or a config file
+	startDate, _ := time.Parse("2006-01-02T15:04", "2022-10-01T11:00")
+	endDate, _ := time.Parse("2006-01-02T15:04", "2022-10-01T11:30")
 
 	return []communautowatcher.CarQuery{
 		{
 			StartDate:     startDate,
 			EndDate:       endDate,
-			FromLatitude:  "45.5393407",
-			FromLongitude: "-73.6307189",
-			CityID:        string(communautowatcher.Montreal),
+			FromLatitude:  "46.8046123",
+			FromLongitude: "-71.2342123",
+			CityID:        communautowatcher.Quebec,
 		},
 	}
 }
