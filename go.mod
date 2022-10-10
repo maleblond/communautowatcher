@@ -1,6 +1,6 @@
-module github.com/maleblond/communautowatcher
+module github.com/guilhermemalfatti/communautowatcher
 
-go 1.19
+go 1.18
 
 require gopkg.in/yaml.v2 v2.4.0
 
