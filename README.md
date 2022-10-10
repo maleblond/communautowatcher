@@ -8,46 +8,66 @@ This package makes it easier to build an app that notifies you when a car gets a
 package main
 
 import (
-	"sync"
+	"context"
+	"fmt"
 	"time"
 
-	"github.com/maleblond/communautowatcher"
+	"github.com/guilhermemalfatti/communautowatcher"
+	"golang.org/x/sync/errgroup"
 )
 
 func main() {
-	wg := sync.WaitGroup{}
-	wg.Add(1)
+	group, groupCtx := errgroup.WithContext(context.Background())
 
-	go func() {
-		defer wg.Done() // Should never be called, `StartWatcher` never finishes
-		communautowatcher.StartWatcher(communautowatcher.WatcherOptions{
-			Interval: time.Minute * 5,
-			Watcher:  &Watcher{},
+	group.Go(func() error {
+		err := communautowatcher.StartWatcher(groupCtx, communautowatcher.WatcherOptions{
+			Interval:        time.Minute * 5,
+			Watcher:         &Watcher{},
+			IsFetchStations: false,
+			IsFetchFlexCars: true,
 		})
-	}()
+		return err
+	})
 
-	wg.Wait()
+	if err := group.Wait(); err != nil {
+		fmt.Printf("failed to read from communauto API: %s", err)
+	}
 }
 
 type Watcher struct{}
 
 func (w *Watcher) GetQueries() []communautowatcher.CarQuery {
-    // Could fetch your "queries" from a database or a config file
-	startDate, _ := time.Parse("2006-01-02T15:04", "2022-10-01T11:00")
-	endDate, _ := time.Parse("2006-01-02T15:04", "2022-10-01T11:30")
+	// Could fetch your "queries" from a database or a config file
+	startDate, _ := time.Parse("2006-01-02T15:04", "2022-10-11T11:00")
+	endDate, _ := time.Parse("2006-01-02T15:04", "2022-10-11T11:30")
 
 	return []communautowatcher.CarQuery{
 		{
 			StartDate:     startDate,
 			EndDate:       endDate,
-			FromLatitude:  "46.8046123",
-			FromLongitude: "-71.2342123",
-			CityID:        communautowatcher.Quebec,
+			FromLatitude:  "45.5393407",
+			FromLongitude: "-73.6307189",
+			CityID:        string(communautowatcher.Montreal),
 		},
 	}
 }
 
-func (w *Watcher) OnCarAvailable(query communautowatcher.CarQuery, cars []communautowatcher.Car) {
-	// Notify by email, update the state of the query to stop notifying etc...
+func (w *Watcher) GetFlexCarQuery() communautowatcher.CarQuery {
+
+	return communautowatcher.CarQuery{
+		BranchID:   "1",
+		LanguageID: "1",
+		CityID:     string(communautowatcher.Montreal),
+	}
 }
+
+func (w *Watcher) OnCarAvailable(query communautowatcher.CarQuery, cars []communautowatcher.Car) {
+	// todo
+}
+
+func (w *Watcher) OnFlexCarAvailable(cars []communautowatcher.FlexCarAvailabilityResp) {
+	fmt.Printf("car No: %d CarModel: %s", cars[0].CarNo, cars[0].CarModel)
+	// todo
+}
+
 ```
