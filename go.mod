@@ -1,4 +1,4 @@
-module github.com/malfatti/communautowatcher
+module github.com/guilhermemalfatti/communautowatcher
 
 go 1.18
 
