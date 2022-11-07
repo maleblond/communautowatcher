@@ -12,7 +12,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/guilhermemalfatti/communautowatcher"
+	"github.com/maleblond/communautowatcher"
 	"golang.org/x/sync/errgroup"
 )
 
