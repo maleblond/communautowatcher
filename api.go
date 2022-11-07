@@ -85,8 +85,6 @@ func GetAvailableFlexCars(ctx context.Context, query CarQuery) (flexCarAvailabil
 	cars := flexCarAvailabilitiesResp{}
 	res, err := http.DefaultClient.Do(req)
 	if err = json.NewDecoder(res.Body).Decode(&cars); err != nil {
-		test, _ := io.ReadAll(res.Body)
-		fmt.Printf("%s", test)
 		return flexCarAvailabilitiesResp{}, err
 	}
 	return cars, nil
