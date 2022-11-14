@@ -1,15 +1,20 @@
 package communautowatcher
 
 import (
+	"context"
+	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"net/url"
+	"os"
 	"strings"
 
 	"gopkg.in/yaml.v2"
 )
 
 const carAvailabilityURL = "https://www.reservauto.net/Scripts/Client/Ajax/PublicCall/Get_Car_DisponibilityJSON.asp"
+const flexCarAvailabilityURL = "https://www.reservauto.net/WCF/LSI/LSIBookingServiceV3.svc/GetAvailableVehicles"
 
 type carAvailabilitiesResp struct {
 	Data []carAvailabilityResp `yaml:"data"`
@@ -21,6 +26,24 @@ type carAvailabilityResp struct {
 	NbrRes      int     `yaml:"NbrRes"`
 	Latitude    float64 `yaml:"Latitude"`
 	Longitude   float64 `yaml:"Longitude"`
+}
+
+type flexCarAvailabilitiesResp struct {
+	Data flexVehiclesResp `json:"d"`
+}
+
+type flexVehiclesResp struct {
+	Vehicles []FlexCarAvailabilityResp `json:"Vehicles"`
+}
+
+type FlexCarAvailabilityResp struct {
+	IsPromo   bool    `json:"isPromo"`
+	CarBrand  string  `json:"CarBrand"`
+	CarModel  string  `json:"CarModel"`
+	CarNo     int     `json:"CarNo"`
+	CarPlate  string  `json:"CarPlate"`
+	Latitude  float64 `json:"Latitude"`
+	Longitude float64 `json:"Longitude"`
 }
 
 // The API does not return valid JSON, so we need to do some gymnastics (see ./samples/car_availabilities.txt):
@@ -45,7 +68,44 @@ func parseAvailableCarResponse(res *http.Response) (carAvailabilitiesResp, error
 	return parsedBody, err
 }
 
-func GetAvailableCars(query CarQuery) ([]Car, error) {
+func GetAvailableFlexCars(ctx context.Context, query CarQuery) ([]Car, error) {
+	req, err := http.NewRequest(http.MethodGet, flexCarAvailabilityURL, nil)
+	if err != nil {
+		fmt.Printf("client: could not create request: %s\n", err)
+		os.Exit(1)
+	}
+
+	req.WithContext(ctx)
+	q := req.URL.Query()
+	q.Add("BranchID", query.BranchID)
+	q.Add("LanguageID", query.LanguageID)
+	q.Add("CityID", query.CityID)
+	req.URL.RawQuery = q.Encode()
+
+	carsResponse := flexCarAvailabilitiesResp{}
+	res, err := http.DefaultClient.Do(req)
+	if err = json.NewDecoder(res.Body).Decode(&carsResponse); err != nil {
+		return nil, err
+	}
+
+	cars := []Car{}
+	for _, vehicle := range carsResponse.Data.Vehicles {
+
+		cars = append(cars, Car{
+			Latitude:  vehicle.Latitude,
+			Longitude: vehicle.Longitude,
+			IsPromo:   vehicle.IsPromo,
+			CarBrand:  vehicle.CarBrand,
+			CarModel:  vehicle.CarModel,
+			CarNo:     vehicle.CarNo,
+			CarPlate:  vehicle.CarPlate,
+		})
+	}
+
+	return cars, nil
+}
+
+func GetAvailableCars(ctx context.Context, query CarQuery) ([]Car, error) {
 	res, err := http.PostForm(carAvailabilityURL,
 		url.Values{
 			"CurrentLanguageID": {"1"},
