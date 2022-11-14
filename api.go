@@ -68,7 +68,7 @@ func parseAvailableCarResponse(res *http.Response) (carAvailabilitiesResp, error
 	return parsedBody, err
 }
 
-func GetAvailableFlexCars(ctx context.Context, query CarQuery) (flexCarAvailabilitiesResp, error) {
+func GetAvailableFlexCars(ctx context.Context, query CarQuery) ([]Car, error) {
 	req, err := http.NewRequest(http.MethodGet, flexCarAvailabilityURL, nil)
 	if err != nil {
 		fmt.Printf("client: could not create request: %s\n", err)
@@ -82,15 +82,30 @@ func GetAvailableFlexCars(ctx context.Context, query CarQuery) (flexCarAvailabil
 	q.Add("CityID", query.CityID)
 	req.URL.RawQuery = q.Encode()
 
-	cars := flexCarAvailabilitiesResp{}
+	carsResponse := flexCarAvailabilitiesResp{}
 	res, err := http.DefaultClient.Do(req)
-	if err = json.NewDecoder(res.Body).Decode(&cars); err != nil {
-		return flexCarAvailabilitiesResp{}, err
+	if err = json.NewDecoder(res.Body).Decode(&carsResponse); err != nil {
+		return nil, err
 	}
+
+	cars := []Car{}
+	for _, vehicle := range carsResponse.Data.Vehicles {
+
+		cars = append(cars, Car{
+			Latitude:  vehicle.Latitude,
+			Longitude: vehicle.Longitude,
+			IsPromo:   vehicle.IsPromo,
+			CarBrand:  vehicle.CarBrand,
+			CarModel:  vehicle.CarModel,
+			CarNo:     vehicle.CarNo,
+			CarPlate:  vehicle.CarPlate,
+		})
+	}
+
 	return cars, nil
 }
 
-func GetAvailableCars(query CarQuery) ([]Car, error) {
+func GetAvailableCars(ctx context.Context, query CarQuery) ([]Car, error) {
 	res, err := http.PostForm(carAvailabilityURL,
 		url.Values{
 			"CurrentLanguageID": {"1"},

@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"time"
+
+	log "github.com/sirupsen/logrus"
 )
 
 type Car struct {
@@ -11,6 +13,11 @@ type Car struct {
 	Latitude     float64
 	Longitude    float64
 	LocationName string
+	IsPromo      bool
+	CarBrand     string
+	CarModel     string
+	CarNo        int
+	CarPlate     string
 }
 
 type CarQuery struct {
@@ -37,47 +44,47 @@ type Watcher interface {
 	GetQueries() []CarQuery
 	GetFlexCarQuery() CarQuery
 	OnCarAvailable(query CarQuery, cars []Car)
-	OnFlexCarAvailable(cars []FlexCarAvailabilityResp)
+	OnFlexCarAvailable(cars []Car)
 }
 
 type WatcherOptions struct {
-	Interval        time.Duration
-	Watcher         Watcher
-	IsFetchStations bool
-	IsFetchFlexCars bool
+	Interval              time.Duration
+	Watcher               Watcher
+	IsEnableFetchStations bool
+	IsEnableFetchFlexCars bool
 }
 
-func StartWatcher(ctx context.Context, options WatcherOptions) error {
+func StartWatcher(ctx context.Context, options WatcherOptions) {
 	ticker := time.NewTicker(options.Interval)
 	defer ticker.Stop()
 
-	err := checkForAvailabilities(options)
+	err := checkForAvailabilities(ctx, options)
 	if err != nil {
-		return fmt.Errorf("[checkForAvailabilities] Error: %s", err)
+		log.Error("[checkForAvailabilities] Error: %s", err)
 	}
 
 	err = checkForFlexCars(ctx, options)
 	if err != nil {
-		return fmt.Errorf("[checkForFlexCars] Error: %s", err)
+		log.Error("[checkForFlexCars] Error: %s", err)
 	}
 
 	for {
 		select {
 		case <-ctx.Done():
-			return nil
+			return
 		case <-ticker.C:
-			if err = checkForAvailabilities(options); err != nil {
-				return fmt.Errorf("[checkForAvailabilities] Error: %s", err)
+			if err = checkForAvailabilities(ctx, options); err != nil {
+				log.Error("[checkForAvailabilities] Error: %s", err)
 			}
 			if err = checkForFlexCars(ctx, options); err != nil {
-				return fmt.Errorf("[checkForFlexCars] Error: %s", err)
+				log.Error("[checkForFlexCars] Error: %s", err)
 			}
 		}
 	}
 }
 
-func checkForAvailabilities(options WatcherOptions) error {
-	if !options.IsFetchStations {
+func checkForAvailabilities(ctx context.Context, options WatcherOptions) error {
+	if !options.IsEnableFetchStations {
 		return nil
 	}
 
@@ -86,7 +93,7 @@ func checkForAvailabilities(options WatcherOptions) error {
 	queries := options.Watcher.GetQueries()
 
 	for _, query := range queries {
-		cars, err := GetAvailableCars(query)
+		cars, err := GetAvailableCars(ctx, query)
 
 		if err != nil {
 			return fmt.Errorf("Could not retrieve available cars: %v\n", err)
@@ -101,7 +108,7 @@ func checkForAvailabilities(options WatcherOptions) error {
 }
 
 func checkForFlexCars(ctx context.Context, options WatcherOptions) error {
-	if !options.IsFetchFlexCars {
+	if !options.IsEnableFetchFlexCars {
 		return nil
 	}
 
@@ -110,8 +117,8 @@ func checkForFlexCars(ctx context.Context, options WatcherOptions) error {
 	if err != nil {
 		return fmt.Errorf("Could not retrieve flex cars: %v\n", err)
 	}
-	if len(response.Data.Vehicles) > 0 {
-		options.Watcher.OnFlexCarAvailable(response.Data.Vehicles)
+	if len(response) > 0 {
+		options.Watcher.OnFlexCarAvailable(response)
 	}
 
 	return nil
